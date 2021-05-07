@@ -35,10 +35,10 @@ Since large parts of our code is only built with msvc14 (VS 20215), and we use p
 - replace_boost_foreach.py
   - replaces BOOST_FOREACH if on a single line
   - removes header
+  - skips removing header in files with `BOOST_REVERSE_FOREACH`
 - replace_lexical_cast.py:
   - replaces `boost::lexical_cast<std::string>` by `std::to_string`
   - removes unused header
-  - skips files with `BOOST_REVERSE_FOREACH`
 - replace_typedef_with_using.py
   - transforms `typedef x::y::z<T> xyz_t` to `using xyz_t = x::y::z<T>`
   - skips multiline typedefs and function pointer-like typedefs
