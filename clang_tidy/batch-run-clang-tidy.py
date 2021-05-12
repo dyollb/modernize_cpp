@@ -44,7 +44,7 @@ def run_clang_tidy(
 
 
 def build_patch(build_dir, logfile=None, target=None):
-    args = ["cmake", "--build", build_dir]
+    args = ["cmake", "--build", build_dir, "--parallel", "4"]
     if target:
         args.append(target)
     if logfile:
@@ -91,7 +91,7 @@ def batch_run_clang_tidy(
 
     with open(os.path.join(log_dir, "_check_initial_build.log"), "w") as logfile:
         if not build_patch(build_dir, logfile=logfile):
-            print("FAILED: ninja [initial build]")
+            print("FAILED: build [initial build]")
 
     for check in checks:
         with open(os.path.join(log_dir, "_check__%s.log" % check), "w") as logfile:
@@ -118,11 +118,11 @@ def batch_run_clang_tidy(
                     else:
                         print("->FAILED: git commit -am '%s'" % check)
                 elif stop_if_compile_error:
-                    print("->FAILED: ninja ['%s'] -> Stopping" % check)
+                    print("->FAILED: build ['%s'] -> Stopping" % check)
                     return
                 else:
                     revert_patch(source_dir=source_dir, logfile=logfile)
-                    print("->FAILED: ninja ['%s']" % check)
+                    print("->FAILED: build ['%s']" % check)
             else:
                 print("->FAILED: clang-tidy/apply '%s'" % check)
 

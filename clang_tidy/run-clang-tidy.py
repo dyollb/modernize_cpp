@@ -41,6 +41,7 @@ import json
 import multiprocessing
 import os
 import re
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -62,6 +63,7 @@ else:
 
 
 def find_compilation_database(path):
+    import os
     """Adjusts the directory until a compilation database is found."""
     result = "./"
     while not os.path.isfile(os.path.join(result, path)):
@@ -72,10 +74,10 @@ def find_compilation_database(path):
     return os.path.realpath(result)
 
 
-def make_absolute(f, directory):
-    if os.path.isabs(f):
-        return os.path.normpath(f)
-    return os.path.normpath(os.path.join(directory, f))
+def make_absolute(f, directory=os.getcwd()):
+    if pathlib.Path(f).is_absolute():
+        return str(pathlib.Path(f).resolve())
+    return str(pathlib.Path(directory, f).resolve())
 
 
 def get_tidy_invocation(
@@ -120,14 +122,13 @@ def get_tidy_invocation(
 
 
 def normalize_path(line):
-    value = line.find("'")
-    if value != -1:
-        line_orig = line
-        left = line[:value]
-        right = line[value + 1 : len(line) - 2]
-        right = "'" + os.path.normpath(right) + "'"
-        if sys.platform.lower() == "win32":
-            right = right.lower()
+    pos = line.find("'")
+    if pos != -1:
+        left = line[:pos]
+        right = line[pos + 1 : len(line) - 2]
+        right = "'" + make_absolute(right) + "'"
+        #if sys.platform.lower() == "win32":
+        #    right = right.lower()
         line = left + right + "\n"
     return line
 
