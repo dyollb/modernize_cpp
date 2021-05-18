@@ -29,6 +29,11 @@ The script includes code compiled withing a folder (recursively), so if you want
 In the call above, the folder `/work/build/debug` is where the build folder in this example. Also note that multiple checks can be queued. If you want the script to cancel if something fails, then add `-stop-on-error`.
 
 
+## clazy
+[This is a project](https://github.com/KDE/clazy) I recently stumbled upon. It is built on clang-tidy/llvm tooling to perform static checks on Qt4/Qt5 code.
+A nice summary of some of these checks that help to avoid typical issues with Qt signals and slots is given [here](https://www.kdab.com/nailing-13-signal-slot-mistakes-clazy-1-3/).
+
+
 ## Other scripts to replace legacy code
 Since large parts of our code is only built with msvc14 (VS 20215), and we use precompiled headers, clang-tidy was not always successful at providing fixits. Therefore, I created collection of python scripts to modernize our code, and e.g. reduce depedencies on boost where c++11 provides an alternative. The basic logic is implemented in [replace_expression.py](replace_scripts/replace_expression.py)
 
