@@ -1,7 +1,7 @@
 from replace_expression import main
 
 
-def add_if(lines):
+def add_if(lines, file_path):
     found = False
     for line in lines:
         if "<boost/test/unit_test.hpp>" in line:

@@ -54,7 +54,7 @@ def replace_non_relative_includes(line, file_dir, iteration):
     return line
 
 
-def replace_duplicate_includes(lines):
+def replace_duplicate_includes(lines, file_path):
     new_lines = []
     count = {}
     for line in lines:

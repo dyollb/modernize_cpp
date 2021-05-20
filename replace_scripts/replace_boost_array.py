@@ -14,7 +14,7 @@ def replace_boost_array(line, file_dir, iteration):
     return line
 
 
-def replace_duplicate_includes(lines):
+def replace_duplicate_includes(lines, file_path):
     new_lines = []
     count = 0
     for line in lines:

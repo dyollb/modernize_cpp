@@ -13,4 +13,4 @@ def replace_virtual(line, file_dir, iteration):
 if __name__ == "__main__":
 
     # assert False, "This code is untested"
-    main(replace_virtual, replace_callback_all_lines=None)
+    main(replace_virtual)

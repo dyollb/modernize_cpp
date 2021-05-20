@@ -37,7 +37,7 @@ def replace_empty_inheritancelist(lines):
     return new_lines, found
 
 
-def remove_empty_lines(lines):
+def remove_empty_lines(lines, file_path):
     lines, changed = replace_empty_inheritancelist(lines)
     if not changed:
         return lines, changed

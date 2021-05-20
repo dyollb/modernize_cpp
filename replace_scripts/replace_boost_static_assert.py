@@ -17,7 +17,7 @@ def replace_boost_static_assert(line, file_dir, iteration):
     return line
 
 
-def remove_includes(lines):
+def remove_includes(lines, file_path):
     new_lines = []
     for line in lines:
         if not "<boost/static_assert.hpp>" in line:

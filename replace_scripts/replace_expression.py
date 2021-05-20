@@ -4,7 +4,7 @@ import fnmatch
 import traceback
 
 
-def replace_line_by_line(
+def do_replace(
     file_path,
     file_dir,
     replace_callback,
@@ -51,7 +51,7 @@ def replace_line_by_line(
             lines = new_lines
 
     if replace_callback_all_lines:
-        new_lines, changed = replace_callback_all_lines(new_lines)
+        new_lines, changed = replace_callback_all_lines(new_lines, file_path)
         if changed:
             found = True
 
@@ -127,7 +127,7 @@ def process_all_files(
 ):
     def process_file(file_path):
         try:
-            replace_line_by_line(
+            do_replace(
                 file_path,
                 os.path.dirname(file_path),
                 replace_callback=replace_callback,
