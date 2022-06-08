@@ -1,6 +1,5 @@
-import subprocess
 import os
-import sys
+import subprocess
 
 
 def run_clang_tidy(
@@ -38,9 +37,7 @@ def run_clang_tidy(
         logfile.write(" ".join(args) + "\n")
     prog = subprocess.Popen(args, stdout=logfile, stderr=logfile, cwd=working_dir)
     prog.communicate()
-    return (
-        True
-    )  # if prog.returncode == 0 else False -> cannot trust run-clang-tidy.py return code
+    return True  # if prog.returncode == 0 else False -> cannot trust run-clang-tidy.py return code
 
 
 def build_patch(build_dir, logfile=None, target=None):
@@ -83,15 +80,17 @@ def batch_run_clang_tidy(
     log_dir=None,
     no_commit=False,
     fix_errors=False,
+    skip_build=False,
     stop_if_compile_error=False,
 ):
 
     if log_dir is None:
         log_dir = build_dir
 
-    with open(os.path.join(log_dir, "_check_initial_build.log"), "w") as logfile:
-        if not build_patch(build_dir, logfile=logfile):
-            print("FAILED: build [initial build]")
+    if not skip_build:
+        with open(os.path.join(log_dir, "_check_initial_build.log"), "w") as logfile:
+            if not build_patch(build_dir, logfile=logfile):
+                print("FAILED: build [initial build]")
 
     for check in checks:
         with open(os.path.join(log_dir, "_check__%s.log" % check), "w") as logfile:
@@ -107,8 +106,11 @@ def batch_run_clang_tidy(
                 logfile=logfile,
             ):
                 print("  Applied fixes for '%s'" % check)
-                if build_patch(build_dir=build_dir, target=target, logfile=logfile):
-                    print("  Built fixes for '%s'" % check)
+                if skip_build or build_patch(
+                    build_dir=build_dir, target=target, logfile=logfile
+                ):
+                    if not skip_build:
+                        print("  Built fixes for '%s'" % check)
                     if no_commit:
                         pass
                     elif commit_patch(
@@ -158,6 +160,9 @@ if __name__ == "__main__":
         help="apply fix-its even if there are errors",
     )
     parser.add_argument(
+        "-skip_build", dest="skip_build", action="store_true", help="skip build"
+    )
+    parser.add_argument(
         "-no", "-no-commit", dest="no_commit", action="store_true", help="skip commit"
     )
     parser.add_argument(
@@ -191,5 +196,6 @@ if __name__ == "__main__":
         log_dir=args.log_dir,
         no_commit=args.no_commit,
         fix_errors=args.fix_errors,
+        skip_build=args.skip_build,
         stop_if_compile_error=args.stop_if_compile_error,
     )
