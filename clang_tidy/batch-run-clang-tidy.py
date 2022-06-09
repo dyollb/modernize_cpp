@@ -1,33 +1,41 @@
 import os
 import subprocess
+import sys
+from pathlib import Path
+from typing import List, TextIO
 
 
 def run_clang_tidy(
-    build_dir,
-    source_dir,
-    clang_tidy=None,
-    clang_apply=None,
-    check="modernize-use-nullptr",
-    fix_errors=False,
-    working_dir=None,
-    logfile=None,
+    build_dir: Path,
+    source_dir: Path,
+    header_filter: str,
+    clang_tidy: Path = None,
+    clang_apply: Path = None,
+    check: str = "modernize-use-nullptr",
+    fix_errors: bool = False,
+    logfile: TextIO = None,
 ):
     # directory containing run-clang-tidy.py script
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    script = os.path.join(current_dir, "run-clang-tidy.py")
+    current_dir = Path(__file__).parent
+    script = os.fspath(current_dir / "run-clang-tidy.py")
 
     # directory where checks are performed/applied
-    if working_dir is None:
-        working_dir = source_dir
+    assert source_dir.exists()
 
-    args = ["python", script, "-p", build_dir, "-header-filter=%s*" % (source_dir)]
+    args = [
+        sys.executable,
+        script,
+        "-p",
+        os.fspath(build_dir),
+        f"-header-filter={header_filter}*",
+    ]
     if clang_tidy:
-        args.extend(["-clang-tidy-binary", clang_tidy])
+        args.extend(["-clang-tidy-binary", os.fspath(clang_tidy)])
     if clang_apply:
-        args.extend(["-clang-apply-replacements-binary", clang_apply])
+        args.extend(["-clang-apply-replacements-binary", os.fspath(clang_apply)])
     args.extend(["-quiet"])
-    args.extend(["-checks=-*,%s" % (check)])
-    args.extend([working_dir])
+    args.extend([f"-checks=-*,{check}"])
+    args.extend([os.fspath(source_dir)])
     if fix_errors:
         args.extend(["-fix-errors"])
     else:
@@ -35,13 +43,13 @@ def run_clang_tidy(
 
     if logfile:
         logfile.write(" ".join(args) + "\n")
-    prog = subprocess.Popen(args, stdout=logfile, stderr=logfile, cwd=working_dir)
+    prog = subprocess.Popen(args, stdout=logfile, stderr=logfile, cwd=source_dir)
     prog.communicate()
     return True  # if prog.returncode == 0 else False -> cannot trust run-clang-tidy.py return code
 
 
-def build_patch(build_dir, logfile=None, target=None):
-    args = ["cmake", "--build", build_dir, "--parallel", "4"]
+def build_patch(build_dir: Path, logfile: TextIO = None, target: str = None):
+    args = ["cmake", "--build", f"{build_dir}", "--parallel", "4"]
     if target:
         args.append(target)
     if logfile:
@@ -51,8 +59,8 @@ def build_patch(build_dir, logfile=None, target=None):
     return True if prog.returncode == 0 else False
 
 
-def commit_patch(message, source_dir, logfile=None):
-    args = ["git", "commit", "-am", "%s" % (message)]
+def commit_patch(message: str, source_dir: Path, logfile: TextIO = None):
+    args = ["git", "commit", "-am", message]
     if logfile:
         logfile.write(" ".join(args) + "\n")
     prog = subprocess.Popen(args, stdout=logfile, stderr=logfile, cwd=source_dir)
@@ -60,7 +68,7 @@ def commit_patch(message, source_dir, logfile=None):
     return True if prog.returncode == 0 else False
 
 
-def revert_patch(source_dir, logfile=None):
+def revert_patch(source_dir: Path, logfile: TextIO = None):
     args = ["git", "reset", "--hard", "HEAD"]
     if logfile:
         logfile.write(" ".join(args) + "\n")
@@ -70,63 +78,63 @@ def revert_patch(source_dir, logfile=None):
 
 
 def batch_run_clang_tidy(
-    build_dir,
-    source_dir,
-    checks,
-    clang_tidy=None,
-    clang_apply=None,
-    target=None,
-    working_dir=None,
-    log_dir=None,
-    no_commit=False,
-    fix_errors=False,
-    skip_build=False,
-    stop_if_compile_error=False,
+    build_dir: Path,
+    source_dir: Path,
+    header_filter: str,
+    checks: List[str],
+    clang_tidy: Path = None,
+    clang_apply: Path = None,
+    target: str = None,
+    log_dir: Path = None,
+    no_commit: bool = False,
+    fix_errors: bool = False,
+    skip_build: bool = False,
+    stop_if_compile_error: bool = False,
 ):
 
     if log_dir is None:
         log_dir = build_dir
 
     if not skip_build:
-        with open(os.path.join(log_dir, "_check_initial_build.log"), "w") as logfile:
+        with open(log_dir / "_check_initial_build.log", "w") as logfile:
             if not build_patch(build_dir, logfile=logfile):
                 print("FAILED: build [initial build]")
 
     for check in checks:
-        with open(os.path.join(log_dir, "_check__%s.log" % check), "w") as logfile:
-            print("Checking for '%s'" % check)
+        with open(log_dir / f"_check__{check}.log", "w") as logfile:
+            print(f"Checking for '{check}'")
             if run_clang_tidy(
                 build_dir=build_dir,
                 source_dir=source_dir,
+                header_filter=header_filter,
                 clang_tidy=clang_tidy,
                 clang_apply=clang_apply,
-                working_dir=working_dir,
                 check=check,
                 fix_errors=fix_errors,
                 logfile=logfile,
             ):
-                print("  Applied fixes for '%s'" % check)
+                print(f"  Applied fixes for '{check}'")
                 if skip_build or build_patch(
                     build_dir=build_dir, target=target, logfile=logfile
                 ):
                     if not skip_build:
-                        print("  Built fixes for '%s'" % check)
+                        print(f"  Built fixes for '{check}'")
                     if no_commit:
                         pass
                     elif commit_patch(
                         message=check, source_dir=source_dir, logfile=logfile
                     ):
-                        print("  Commited fixes for '%s'" % check)
+                        print(f"  Committed fixes for '{check}'")
                     else:
-                        print("->FAILED: git commit -am '%s'" % check)
+                        print(f"->FAILED: git commit -am '{check}'")
                 elif stop_if_compile_error:
-                    print("->FAILED: build ['%s'] -> Stopping" % check)
+                    print(f"->FAILED: build ['{check}'] -> Stopping")
                     return
                 else:
                     revert_patch(source_dir=source_dir, logfile=logfile)
-                    print("->FAILED: build ['%s']" % check)
+                    print(f"->FAILED: build ['{check}']")
             else:
-                print("->FAILED: clang-tidy/apply '%s'" % check)
+                print(f"->FAILED: clang-tidy/apply '{check}'")
 
 
 if __name__ == "__main__":
@@ -139,17 +147,33 @@ if __name__ == "__main__":
         dest="build",
         help="path to build dir containing compile_commands.json",
     )
-    parser.add_argument("-s", "-source", dest="source", help="path to source directory")
-    parser.add_argument("-log_dir", dest="log_dir", default=None, help="path log files")
+    parser.add_argument(
+        "-s", "-source", dest="source", type=Path, help="path to source directory"
+    )
+    parser.add_argument(
+        "-regex",
+        dest="header_filter",
+        default=".*",
+        type=str,
+        help="header filter regex (ERE-style)",
+    )
+    parser.add_argument(
+        "-log-dir", dest="log_dir", type=Path, default=None, help="path log files"
+    )
     parser.add_argument(
         "-c", "-checks", dest="checks", action="append", help="checks to be performed"
     )
     parser.add_argument(
-        "-clang-tidy", dest="clang_tidy", default=None, help="path to clang-tidy binary"
+        "-clang-tidy",
+        dest="clang_tidy",
+        type=Path,
+        default=None,
+        help="path to clang-tidy binary",
     )
     parser.add_argument(
         "-clang-apply",
         dest="clang_apply",
+        type=Path,
         default=None,
         help="path to clang-apply-replacements binary",
     )
@@ -160,7 +184,7 @@ if __name__ == "__main__":
         help="apply fix-its even if there are errors",
     )
     parser.add_argument(
-        "-skip_build", dest="skip_build", action="store_true", help="skip build"
+        "-skip-build", dest="skip_build", action="store_true", help="skip build"
     )
     parser.add_argument(
         "-no", "-no-commit", dest="no_commit", action="store_true", help="skip commit"
@@ -180,8 +204,8 @@ if __name__ == "__main__":
         "modernize-deprecated-headers",
         "modernize-use-nullptr",
         "modernize-redundant-void-arg",
-        "readability-implicit-bool-conversion",
-        "google-explicit-constructor",
+        "modernize-redundant-void-arg",
+        "modernize-use-default-member-init",
         "performance-trivially-destructible",
     ]
     if args.checks is not None:
@@ -190,6 +214,7 @@ if __name__ == "__main__":
     batch_run_clang_tidy(
         build_dir=args.build,
         source_dir=args.source,
+        header_filter=args.header_filter,
         clang_tidy=args.clang_tidy,
         clang_apply=args.clang_apply,
         checks=checks,
